@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <context:annotation-config />
+    <context:component-scan base-package="com.github.maya" />
+
+    <!--读取配置文件-->
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="properties">
+            <bean class="org.springframework.beans.factory.config.YamlPropertiesFactoryBean">
+                <property name="resources">
+                    <list>
+                        <value>classpath:config.yml</value>
+                    </list>
+                </property>
+                <property name="resolutionMethod" value="FIRST_FOUND" />
+            </bean>
+        </property>
+    </bean>
+
+    <!--使用tomcat的jdbc连接池-->
+    <bean name="dataSource" class="org.apache.tomcat.jdbc.pool.DataSource">
+        <property name="driverClassName" value="${jdbc.driverClassName}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}" />
+        <property name="password" value="${jdbc.password}" />
+        <property name="validationQuery" value="SELECT 1" />
+        <property name="testOnBorrow" value="false"/>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <property name="configLocation" value="classpath:mybatis-config.xml" />
+        <property name="mapperLocations" value="classpath*:com/github/maya/mapper/*.xml" />
+    </bean>
+
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg ref="sqlSessionFactory" />
+    </bean>
+
+    <bean id="scannerConfig" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.github.maya.persistence" />
+        <property name="sqlSessionTemplateBeanName" value="sqlSessionTemplate" />
+    </bean>
+
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+
+    <!--使用匿名内部bean，因为只有ProcessEngineFactoryBean使用SpringProcessEngineConfiguration-->
+    <bean id="processEngine" class="org.activiti.spring.ProcessEngineFactoryBean">
+        <property name="processEngineConfiguration">
+            <bean class="org.activiti.spring.SpringProcessEngineConfiguration">
+                <property name="dataSource" ref="dataSource" />
+                <property name="transactionManager" ref="transactionManager" />
+                <property name="databaseSchemaUpdate" value="true" />
+                <property name="jobExecutorActivate" value="false" />
+                <property name="activityFontName" value="宋体" />
+                <property name="labelFontName" value="宋体" />
+            </bean>
+        </property>
+    </bean>
+
+
+    <bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService" />
+    <bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService" />
+    <bean id="taskService" factory-bean="processEngine" factory-method="getTaskService" />
+    <bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService" />
+    <bean id="managementService" factory-bean="processEngine" factory-method="getManagementService" />
+    <bean id="formService" factory-bean="processEngine" factory-method="getFormService" />
+    <bean id="identityService" factory-bean="processEngine" factory-method="getIdentityService" />
+    <bean id="dynamicBpmnService" factory-bean="processEngine" factory-method="getDynamicBpmnService" />
+</beans>
